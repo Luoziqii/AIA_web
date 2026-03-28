@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 
-	_ "ArticleServer/docs"
+	_ "ArticleServer/docs" // 导入 Swagger 生成的代码
 	"ArticleServer/internal/article"
+	"ArticleServer/internal/asset"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -15,57 +16,88 @@ import (
 	"gorm.io/gorm"
 )
 
-// DBConfig 定义数据库配置
-type DBConfig struct {
-	User     string
-	Password string
-	Host     string
-	Port     string
-	DBName   string
-}
-
-// 组装 DSN 字符串
-func (c *DBConfig) getDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		c.User, c.Password, c.Host, c.Port, c.DBName)
-}
-
-
-// @title AIA 社团博客 API
-// @version 1.0
-// @description AIA 论坛后端。
-// @host localhost:8080
-// @BasePath /api
 func Run() {
-	
-	config := DBConfig{
-		User:     getEnv("DB_USER", "root"),
-		Password: getEnv("DB_PASS", "061112"),
-		Host:     getEnv("DB_HOST", "127.0.0.1"),
-		Port:     getEnv("DB_PORT", "3306"),
-		DBName:   getEnv("DB_NAME", "ArticleData"),
-	}
+	// 1. 初始化数据库连接
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		getEnv("DB_USER", "root"),
+		getEnv("DB_PASS", "061112"),
+		getEnv("DB_HOST", "127.0.0.1"),
+		getEnv("DB_PORT", "3306"),
+		getEnv("DB_NAME", "ArticleData"),
+	)
 
-	log.Printf("正在尝试连接数据库: %s:%s/%s", config.Host, config.Port, config.DBName)
-
-	db, err := gorm.Open(mysql.Open(config.getDSN()), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("数据库连接失败: %v", err)
 	}
 
-    repo := article.NewRepository(db)
-	svc := article.NewService(repo)
-	handler := article.NewHandler(svc)
+	// 2. 静态资源存储引擎选择
+	var storageEngine asset.Storage
+	// --- 方案 A: 本地存储 (开发调试用) ---
+	storageEngine = &asset.LocalStorage{
+    RootPath: "./storage/assets",
+    BaseURL:  "http://localhost:8080/assets",
+}
+	/* 
+	// --- 方案 B: OSS (填入参数即可切换) ---
+	storageEngine := &asset.OSSStorage{
+		Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
+		AccessKeyID:     "your_id",
+		AccessKeySecret: "your_secret",
+		BucketName:      "your_bucket",
+	}
+	*/
 
+	// 3. 模块初始化
+	// --- 文章模块 ---
+	articleRepo := article.NewRepository(db)
+	articleSvc := article.NewService(articleRepo)
+	articleHandler := article.NewHandler(articleSvc)
+
+	// --- 静态资源模块 ---
+	assetRepo := asset.NewRepository(db)
+	assetSvc := asset.NewService(assetRepo, storageEngine)
+	assetHandler := asset.NewHandler(assetSvc)
+
+	// 4. 设置路由
 	r := gin.Default()
+
+	if _, ok := storageEngine.(*asset.LocalStorage); ok {
+		r.Static("/assets", "./storage/assets")
+	}
+
 	v1 := r.Group("/api")
 	{
-		v1.POST("/articles", handler.CreateArticle)
-		v1.GET("/articles/:id", handler.GetArticle)
-		v1.GET("/articles", handler.ListArticles)
+		// --- 公开访问 (无需鉴权) ---
+		v1.GET("/articles", articleHandler.ListArticles)   // 获取文章列表
+		v1.GET("/articles/:id", articleHandler.GetArticle) // 获取文章详情
+		v1.GET("/assets", assetHandler.ListAssets)         // 获取资源列表
+
+		// --- 敏感操作 ---
+		authorized := v1.Group("/")
+		
+		/* 
+		   鉴权占位：此处后期接入 auth 模块。
+		   authorized.Use(auth.Middleware()) 
+		*/
+		
+		{
+			// 文章管理
+			authorized.POST("/articles", articleHandler.CreateArticle)			// 创建文章
+			authorized.PUT("/articles/:id", articleHandler.UpdateArticle)		// 更新文章
+			authorized.DELETE("/articles/:id", articleHandler.DeleteArticle)	// 删除文章
+
+			// 资源管理
+			authorized.POST("/assets", assetHandler.UploadFile)		// 上传资源
+			authorized.DELETE("/assets", assetHandler.DeleteAsset)	// 删除资源
+		}
 	}
+
+	// 5. Swagger 文档
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// 6. 启动服务
+	log.Println("启动在 http://localhost:8080")
 	r.Run(":8080")
 }
 

@@ -21,17 +21,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "博客接口"
+                    "Articles"
                 ],
-                "summary": "获取所有博客文章列表",
+                "summary": "获取文章列表",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/article.Article"
-                            }
+                            "$ref": "#/definitions/article.ArticleListResponse"
                         }
                     }
                 }
@@ -44,12 +41,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "博客接口"
+                    "Articles"
                 ],
-                "summary": "发布一篇 Markdown 博客",
+                "summary": "发布新文章",
                 "parameters": [
                     {
-                        "description": "文章数据",
+                        "description": "文章内容",
                         "name": "article",
                         "in": "body",
                         "required": true,
@@ -60,10 +57,12 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "{\"id\": \"uuid\"}",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "400": {
@@ -83,8 +82,8 @@ const docTemplate = `{
                 "summary": "获取特定 ID 的博客",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "example": 1,
+                        "type": "string",
+                        "example": "\"1\"",
                         "description": "博客ID",
                         "name": "id",
                         "in": "path",
@@ -184,43 +183,78 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "author": {
-                    "type": "string",
-                    "example": "张三"
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
                 },
                 "content": {
-                    "type": "string",
-                    "example": "# Markdown内容"
+                    "description": "omitempty 表示列表时不展示正文",
+                    "type": "string"
                 },
-                "created_at": {
+                "createdAt": {
+                    "description": "小驼峰",
+                    "type": "string"
+                },
+                "defaultMode": {
+                    "description": "小驼峰",
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "string"
                 },
                 "title": {
-                    "type": "string",
-                    "example": "标题五个字"
-                },
-                "updated_at": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "description": "小驼峰",
+                    "type": "string"
+                }
+            }
+        },
+        "article.ArticleListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "必须叫 items",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/article.Article"
+                    }
                 }
             }
         },
         "article.CreateRequest": {
             "type": "object",
             "required": [
+                "author",
+                "category",
                 "content",
+                "defaultMode",
                 "title"
             ],
             "properties": {
                 "author": {
                     "type": "string",
-                    "example": "社团负责人"
+                    "example": "负责人"
+                },
+                "category": {
+                    "type": "string",
+                    "example": "技术分享"
                 },
                 "content": {
                     "type": "string",
-                    "example": "# 第一章：拒绝模糊逻辑\n这是一篇关于 Go 强类型的文章。"
+                    "example": "# Markdown 内容"
+                },
+                "defaultMode": {
+                    "description": "@Enums article, slide, homework",
+                    "type": "string",
+                    "enum": [
+                        "article",
+                        "slide",
+                        "homework"
+                    ],
+                    "example": "article"
                 },
                 "title": {
                     "type": "string",
@@ -233,7 +267,7 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string",
-                    "example": "参数校验失败：标题不能为空"
+                    "example": "参数校验失败"
                 }
             }
         },
@@ -279,12 +313,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/api",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "AIA 社团博客 API",
-	Description:      "AIA 论坛后端。",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

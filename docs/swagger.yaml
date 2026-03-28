@@ -1,45 +1,68 @@
-basePath: /api
 definitions:
   article.Article:
     properties:
       author:
-        example: 张三
+        type: string
+      category:
         type: string
       content:
-        example: '# Markdown内容'
+        description: omitempty 表示列表时不展示正文
         type: string
-      created_at:
+      createdAt:
+        description: 小驼峰
+        type: string
+      defaultMode:
+        description: 小驼峰
         type: string
       id:
-        example: 1
-        type: integer
+        type: string
       title:
-        example: 标题五个字
         type: string
-      updated_at:
+      updatedAt:
+        description: 小驼峰
         type: string
+    type: object
+  article.ArticleListResponse:
+    properties:
+      items:
+        description: 必须叫 items
+        items:
+          $ref: '#/definitions/article.Article'
+        type: array
     type: object
   article.CreateRequest:
     properties:
       author:
-        example: 社团负责人
+        example: 负责人
+        type: string
+      category:
+        example: 技术分享
         type: string
       content:
-        example: |-
-          # 第一章：拒绝模糊逻辑
-          这是一篇关于 Go 强类型的文章。
+        example: '# Markdown 内容'
+        type: string
+      defaultMode:
+        description: '@Enums article, slide, homework'
+        enum:
+        - article
+        - slide
+        - homework
+        example: article
         type: string
       title:
         example: 关于后端严谨性的深度思考
         type: string
     required:
+    - author
+    - category
     - content
+    - defaultMode
     - title
     type: object
   article.ErrorResponse:
     properties:
       error:
-        example: 参数校验失败：标题不能为空
+        example: 参数校验失败
         type: string
     type: object
   asset.SuccessResponse:
@@ -67,12 +90,8 @@ definitions:
         example: /uploads/images/2026/03/25/uuid.png
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
-  description: AIA 论坛后端。
-  title: AIA 社团博客 API
-  version: "1.0"
 paths:
   /articles:
     get:
@@ -82,17 +101,15 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/article.Article'
-            type: array
-      summary: 获取所有博客文章列表
+            $ref: '#/definitions/article.ArticleListResponse'
+      summary: 获取文章列表
       tags:
-      - 博客接口
+      - Articles
     post:
       consumes:
       - application/json
       parameters:
-      - description: 文章数据
+      - description: 文章内容
         in: body
         name: article
         required: true
@@ -102,26 +119,27 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created
+          description: '{"id": "uuid"}'
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: string
             type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/article.ErrorResponse'
-      summary: 发布一篇 Markdown 博客
+      summary: 发布新文章
       tags:
-      - 博客接口
+      - Articles
   /articles/{id}:
     get:
       parameters:
       - description: 博客ID
-        example: 1
+        example: '"1"'
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       responses:
         "200":
           description: OK

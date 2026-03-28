@@ -1,47 +1,55 @@
 package asset
 
 import (
-	"fmt"
-	"os"
+	"mime"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *Repository
+	repo    *Repository
+	storage Storage // 核心：注入接口
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, storage Storage) *Service {
+	return &Service{repo: repo, storage: storage}
 }
 
-func (s *Service) GeneratePath(originalName string) (pPath, aURL, fType string, err error) {
-	ext := strings.ToLower(filepath.Ext(originalName))
-	fType = "others"
-	if isImage(ext) { fType = "images" } else if isDoc(ext) { fType = "docs" }
-
-	now := time.Now()
-	dateDir := now.Format("2006/01/02")
+// ProcessUpload 处理上传逻辑
+func (s *Service) ProcessUpload(originalName, scope, nameStem string) (*AssetRecord, string) {
+	extWithDot := filepath.Ext(originalName)
+	ext := strings.TrimPrefix(extWithDot, ".")
+	contentType := mime.TypeByExtension(extWithDot)
+	filename := nameStem + extWithDot
 	
-	// 通用规范：根目录下的 storage/assets
-	relDir := filepath.Join("storage", "assets", fType, dateDir)
-	_ = os.MkdirAll(relDir, 0755)
+	// 1. Path (用于数据库标识和传入参数): /storage/assets/scope/filename
+	path := "/storage/assets/" + scope + "/" + filename
+	
+	// 2. SavedPath (用于磁盘操作): storage/assets/scope/filename
+	savedPath := "storage/assets/" + scope + "/" + filename
+	
+	// 3. URL (用于前端访问): http://localhost:8080/assets/scope/filename
+	accessURL := s.storage.GetBaseURL() + "/" + scope + "/" + filename
+	
+	kind := "shared"
+	markdownValue := "/assets/" + scope + "/" + filename // 推荐 Markdown 路径
+	if strings.HasPrefix(scope, "article-") || len(scope) > 20 {
+		kind = "article"
+		markdownValue = filename
+	}
 
-	// 命名：UUID_时间戳.后缀
-	newName := fmt.Sprintf("%s_%d%s", uuid.New().String(), now.UnixNano(), ext)
-	pPath = filepath.Join(relDir, newName)
-	aURL = fmt.Sprintf("/assets/%s/%s/%s", fType, dateDir, newName)
+	record := &AssetRecord{
+		Path:          path,
+		URL:           accessURL,    
+		MarkdownValue: markdownValue,
+		Scope:         scope,
+		Kind:          kind,
+		Filename:      filename,
+		Name:          nameStem,
+		Ext:           ext,
+		ContentType:   contentType,
+		SavedPath:     savedPath,
+	}
 
-	return pPath, aURL, fType, nil
-}
-
-func isImage(ext string) bool {
-	return map[string]bool{".jpg":true, ".jpeg":true, ".png":true, ".gif":true, ".webp":true}[ext]
-}
-
-func isDoc(ext string) bool {
-	return map[string]bool{".pdf":true, ".docx":true, ".txt":true, ".md":true}[ext]
+	return record, savedPath
 }

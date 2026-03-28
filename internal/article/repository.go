@@ -2,30 +2,46 @@ package article
 
 import "gorm.io/gorm"
 
+// Repository 封装对 Article 表的数据库操作
 type Repository struct {
 	db *gorm.DB
 }
 
+// NewRepository 初始化仓库并自动同步表结构
 func NewRepository(db *gorm.DB) *Repository {
-	db.AutoMigrate(&Article{})
+	_ = db.AutoMigrate(&Article{})
 	return &Repository{db: db}
 }
 
+// Create 在数据库中插入一条新文章记录
 func (r *Repository) Create(a *Article) error {
 	return r.db.Create(a).Error
 }
 
-// ... FindByID 和 List 保持不变 ...
-
+// FindByID 根据 UUID 查找特定文章详情
 func (r *Repository) FindByID(id string) (*Article, error) {
 	var a Article
-	// 注意：当 ID 是字符串时，建议显式写出查询条件 "id = ?"
 	err := r.db.First(&a, "id = ?", id).Error
 	return &a, err
 }
 
+// List 获取所有文章的元数据列表
 func (r *Repository) List() ([]Article, error) {
 	var articles []Article
-	err := r.db.Order("created_at desc").Find(&articles).Error
+	
+	err := r.db.Select("id", "title", "category", "author", "default_mode", "created_at", "updated_at", "cover").
+		Order("created_at desc"). // 按创建时间倒序排列
+		Find(&articles).Error
+		
 	return articles, err
+}
+
+// Update 更新数据库中的文章记录
+func (r *Repository) Update(a *Article) error {
+	return r.db.Save(a).Error
+}
+
+// DeleteByID 删除指定的文章记录
+func (r *Repository) DeleteByID(id string) error {
+	return r.db.Delete(&Article{}, "id = ?", id).Error
 }

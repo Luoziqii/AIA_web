@@ -1,96 +1,140 @@
 package article
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// Handler 负责文章模块的 HTTP 路由处理
 type Handler struct {
 	svc *Service
 }
 
+// NewHandler 初始化处理器
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// CreateRequest 对应 Apifox Body 参数
-type CreateRequest struct {
-	Title    string `json:"title" binding:"required" example:"关于后端严谨性的深度思考"`
-	Category string `json:"category" binding:"required" example:"技术分享"`
-	Author   string `json:"author" binding:"required" example:"负责人"`
-	// @Enums article, slide, homework
-	DefaultMode string `json:"defaultMode" binding:"required,oneof=article slide homework" example:"article"`
-	Content     string `json:"content" binding:"required" example:"# Markdown 内容"`
-}
-
-// ErrorResponse 统一错误响应
+// ErrorResponse 统一错误响应结构
 type ErrorResponse struct {
-	Error string `json:"error" example:"参数校验失败"`
+	Error string `json:"error" example:"错误信息描述"`
 }
 
-// CreateArticle 发布新文章
-// @Summary 发布新文章
+// ArticleListResponse 匹配前端 Response 接口
+type ArticleListResponse struct {
+	Items []Article `json:"items"`
+}
+
+// CreateArticle 处理发布文章请求
+// @Summary 发布文章
 // @Tags Articles
 // @Accept json
 // @Produce json
-// @Param article body CreateRequest true "文章内容"
+// @Param body body CreateRequest true "文章数据"
 // @Success 201 {object} map[string]string "{"id": "uuid"}"
 // @Failure 400 {object} ErrorResponse
 // @Router /articles [post]
 func (h *Handler) CreateArticle(c *gin.Context) {
 	var req CreateRequest
-	
-	// 校验参数（包含必填项和枚举值校验）
+	// 1. 绑定并校验 JSON 参数
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "参数校验失败: title, category, author, content, defaultMode 为必填且 defaultMode 必须为规定枚举值"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "参数校验失败，请检查必填项及模式是否正确"})
 		return
 	}
 
+	// 2. 调用业务逻辑
 	id, err := h.svc.CreateArticle(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "数据库保存失败"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "服务器内部错误，保存失败"})
 		return
 	}
 
-	// 对应 Apifox 要求：HTTP 201，仅返回 ID
-	c.JSON(http.StatusCreated, gin.H{
-		"id": id,
-	})
+	// 3. 返回 201 Created
+	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
-// GetArticle 获取文章
-// @Summary 获取特定 ID 的博客
-// @Tags 博客接口
-// @Param id path string true "博客ID" example("1") 
+// ListArticles 处理获取文章列表请求
+// @Summary 获取文章列表
+// @Tags Articles
+// @Produce json
+// @Success 200 {object} ArticleListResponse
+// @Router /articles [get]
+func (h *Handler) ListArticles(c *gin.Context) {
+	list, err := h.svc.repo.List()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "无法获取文章列表"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ArticleListResponse{Items: list})
+}
+
+// GetArticle 处理获取单篇文章详情请求
+// @Summary 获取文章详情
+// @Tags Articles
+// @Param id path string true "文章 ID (UUID)"
+// @Produce json
 // @Success 200 {object} Article
-// @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /articles/{id} [get]
 func (h *Handler) GetArticle(c *gin.Context) {
-	// 1. 直接获取路径参数（它本身就是 string）
 	id := c.Param("id")
-
-	// 2. 直接传给 service，不需要转成 uint
-	b, err := h.svc.GetArticle(id) 
+	art, err := h.svc.GetArticle(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "文章不存在"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "该文章不存在"})
+		} else {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "查询文章失败"})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, b)
+
+	c.JSON(http.StatusOK, art)
 }
 
-// ListArticles 获取文章列表
-// @Summary 获取所有博客文章列表
-// @Tags 博客接口
-// @Produce json
-// @Success 200 {array} Article
-// @Router /articles [get]
-func (h *Handler) ListArticles(c *gin.Context) {
-	articles, err := h.svc.repo.List() // 直接调用 repo 获取列表
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "获取列表失败"})
+// UpdateArticle 处理编辑文章请求
+// @Summary 编辑文章
+// @Tags Articles
+// @Param id path string true "文章 ID"
+// @Param body body CreateRequest true "更新的数据"
+// @Success 200 {object} map[string]string "{"message": "更新成功"}"
+// @Failure 404 {object} ErrorResponse
+// @Router /articles/{id} [put]
+func (h *Handler) UpdateArticle(c *gin.Context) {
+	id := c.Param("id")
+	var req CreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "参数格式错误"})
 		return
 	}
-	c.JSON(http.StatusOK, articles)
+
+	if err := h.svc.UpdateArticle(id, req); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "无法更新，文章不存在"})
+		} else {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "更新操作失败"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
+}
+
+// DeleteArticle 处理删除文章请求
+// @Summary 删除文章
+// @Tags Articles
+// @Param id path string true "文章 ID"
+// @Success 204 "No Content"
+// @Router /articles/{id} [delete]
+func (h *Handler) DeleteArticle(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.svc.DeleteArticle(id); err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "删除操作失败"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
