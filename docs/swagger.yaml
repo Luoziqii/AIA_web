@@ -85,58 +85,37 @@ definitions:
   asset.AssetRecord:
     properties:
       contentType:
-        description: ContentType 文件的 MIME 类型
         type: string
       ext:
-        description: Ext 扩展名
         type: string
       filename:
-        description: Filename 完整文件名
         type: string
       kind:
-        description: 'Kind 资源归属类型: article, shared'
         type: string
       markdownValue:
-        description: MarkdownValue 推荐写入 Markdown 的值
         type: string
       name:
-        description: Name 文件名主干
         type: string
       path:
-        description: Path 完整资源路径
         type: string
       scope:
-        description: Scope 第一层路径
         type: string
       size:
-        description: Size 文件大小
         type: integer
       uploadedAt:
-        description: UploadedAt 上传时间
         type: string
       url:
-        description: URL 完整访问地址
-        type: string
-    type: object
-  asset.ErrorResponse:
-    properties:
-      error:
-        example: 错误描述
         type: string
     type: object
   auth.ErrorResponse:
     properties:
       error:
-        example: 密码错误
         type: string
     type: object
   auth.LoginRequest:
     properties:
       password:
-        example: strong_pwd_123
-        type: string
-      username:
-        example: admin
+        example: x6+xJ/c5fsWaVyxu
         type: string
     required:
     - password
@@ -144,7 +123,6 @@ definitions:
   auth.LoginResponse:
     properties:
       token:
-        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
 host: localhost:8080
@@ -241,12 +219,8 @@ paths:
         schema:
           $ref: '#/definitions/article.CreateRequest'
       responses:
-        "200":
-          description: '{"message": "更新成功"}'
-          schema:
-            additionalProperties:
-              type: string
-            type: object
+        "204":
+          description: No Content
         "404":
           description: Not Found
           schema:
@@ -265,10 +239,6 @@ paths:
       responses:
         "204":
           description: No Content
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/asset.ErrorResponse'
       summary: 删除静态资源
       tags:
       - Assets
@@ -299,21 +269,21 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: 第一层路径 (文章ID或公共目录)
+      - description: 第一层路径
         in: formData
         name: scope
         required: true
         type: string
-      - description: 文件名主干 (不含扩展名)
+      - description: 文件名主干
         in: formData
         name: name
         required: true
         type: string
-      - description: 是否覆盖同路径资源
+      - description: 是否允许覆盖同路径资源
         in: formData
         name: overwrite
         type: boolean
-      - description: 文件流
+      - description: 文件
         in: formData
         name: file
         required: true
@@ -333,7 +303,7 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: 登录参数
+      - description: 登录参数 (将生成的 16 位强动态口令填入 password 字段)
         in: body
         name: body
         required: true
@@ -354,7 +324,7 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/auth.ErrorResponse'
-      summary: 管理员登录
+      summary: 终极管理员登录 (仅依赖高熵动态口令)
       tags:
       - Auth
 swagger: "2.0"

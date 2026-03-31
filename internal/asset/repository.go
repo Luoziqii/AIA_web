@@ -31,7 +31,7 @@ func (r *Repository) FindByPath(path string) (*AssetRecord, error) {
 	var a AssetRecord
 	err := r.db.Where("path = ?", path).First(&a).Error
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 	return &a, nil
 }
@@ -45,9 +45,15 @@ func (r *Repository) List(scope, kind, keyword string, page, pageSize int) ([]As
 	var total int64
 	db := r.db.Model(&AssetRecord{})
 
-	if scope != "" { db = db.Where("scope = ?", scope) }
-	if kind != "" { db = db.Where("kind = ?", kind) }
-	if keyword != "" { db = db.Where("name LIKE ?", "%"+keyword+"%") }
+	if scope != "" {
+		db = db.Where("scope = ?", scope)
+	}
+	if kind != "" {
+		db = db.Where("kind = ?", kind)
+	}
+	if keyword != "" {
+		db = db.Where("name LIKE ?", "%"+keyword+"%")
+	}
 
 	db.Count(&total)
 	err := db.Order("created_at desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error

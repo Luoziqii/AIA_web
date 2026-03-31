@@ -131,14 +131,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "{\"message\": \"更新成功\"}",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "404": {
                         "description": "Not Found",
@@ -218,27 +212,27 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "第一层路径 (文章ID或公共目录)",
+                        "description": "第一层路径",
                         "name": "scope",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "文件名主干 (不含扩展名)",
+                        "description": "文件名主干",
                         "name": "name",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "是否覆盖同路径资源",
+                        "description": "是否允许覆盖同路径资源",
                         "name": "overwrite",
                         "in": "formData"
                     },
                     {
                         "type": "file",
-                        "description": "文件流",
+                        "description": "文件",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -270,12 +264,6 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/asset.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -291,10 +279,10 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "管理员登录",
+                "summary": "终极管理员登录 (仅依赖高熵动态口令)",
                 "parameters": [
                     {
-                        "description": "登录参数",
+                        "description": "登录参数 (将生成的 16 位强动态口令填入 password 字段)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -439,57 +427,37 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "contentType": {
-                    "description": "ContentType 文件的 MIME 类型",
                     "type": "string"
                 },
                 "ext": {
-                    "description": "Ext 扩展名",
                     "type": "string"
                 },
                 "filename": {
-                    "description": "Filename 完整文件名",
                     "type": "string"
                 },
                 "kind": {
-                    "description": "Kind 资源归属类型: article, shared",
                     "type": "string"
                 },
                 "markdownValue": {
-                    "description": "MarkdownValue 推荐写入 Markdown 的值",
                     "type": "string"
                 },
                 "name": {
-                    "description": "Name 文件名主干",
                     "type": "string"
                 },
                 "path": {
-                    "description": "Path 完整资源路径",
                     "type": "string"
                 },
                 "scope": {
-                    "description": "Scope 第一层路径",
                     "type": "string"
                 },
                 "size": {
-                    "description": "Size 文件大小",
                     "type": "integer"
                 },
                 "uploadedAt": {
-                    "description": "UploadedAt 上传时间",
                     "type": "string"
                 },
                 "url": {
-                    "description": "URL 完整访问地址",
                     "type": "string"
-                }
-            }
-        },
-        "asset.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "错误描述"
                 }
             }
         },
@@ -497,8 +465,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
-                    "type": "string",
-                    "example": "密码错误"
+                    "type": "string"
                 }
             }
         },
@@ -510,11 +477,7 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string",
-                    "example": "strong_pwd_123"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "admin"
+                    "example": "x6+xJ/c5fsWaVyxu"
                 }
             }
         },
@@ -522,8 +485,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    "type": "string"
                 }
             }
         }

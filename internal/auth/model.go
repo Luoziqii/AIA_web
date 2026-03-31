@@ -1,25 +1,23 @@
 package auth
 
 const (
-	RoleAdmin = "admin"
+	RoleSuperAdmin = "super_admin"
 )
 
-// LoginRequest 为兼容现有契约保留 password 必填。
 type LoginRequest struct {
-	Password string `json:"password" binding:"required" example:"strong_pwd_123"`
-	Username string `json:"username,omitempty" example:"admin"`
+	Password string `json:"password" binding:"required" example:"x6+xJ/c5fsWaVyxu"`
 }
 
 type LoginResponse struct {
-	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	Token string `json:"token"`
 }
 
 type ErrorResponse struct {
-	Error string `json:"error" example:"密码错误"`
+	Error string `json:"error"`
 }
 
 type Claims struct {
-	UserID   uint   `json:"uid"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Role string `json:"role"`
+	Iat  int64  `json:"iat"` // 用于校验是否被顶号
+	Exp  int64  `json:"exp"`
 }
