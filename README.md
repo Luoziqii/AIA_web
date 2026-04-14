@@ -1,5 +1,7 @@
 # AIA 后端项目使用说明
 
+**本项目已经迁移到[社团仓库](https://github.com/NJU-AIA/nju-aia-site-backend)**
+
 ## 1. 环境依赖
 
 * **运行时**: Go 1.20+
